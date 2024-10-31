@@ -1,14 +1,14 @@
 /**
  * define helps defining custom components:
- * define('custom-name', class extends ShadowElement { ... })
+ * define('custom-name', class extends HTMLElement { ... })
  * @returns {string} name used to define custom component
  * @example 
- * import { define, ShadowElement } from "@ognaf/core";
+ * import { define } from "@flemminghansen/wc-store";
 
- * define("hello-world", class extends ShadowElement {
+ * define("hello-world", class extends HTMLElement {
     constructor() {
         super();
-        this.shadow.innerHTML = "<div>Hello world!</div>";
+        this.innerHTML = "<div>Hello world!</div>";
     }
 })
  * 
@@ -17,7 +17,7 @@
  * in the DOM by its given name.
  * 
  * @example
- * <my-component></my-component>
+ * <hello-world></hello-world>
  */
 export function define(
   name: string,
