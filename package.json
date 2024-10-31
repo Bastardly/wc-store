@@ -1,6 +1,8 @@
 {
   "name": "@flemminghansen/wc-store",
-  "version": "0.1.0",
+  "author": "Flemming Hansen",
+  "license": "MIT",
+  "version": "0.1.1",
   "description": "Small reactive store to be used with web component",
   "main": "lib/index.js",
   "types": "lib/index.d.ts",
@@ -22,13 +24,14 @@
   },
    "scripts": {
     "build": "tsc --project tsconfig.json",
-    "build2": "rollup --config",
     "test": "echo \"Error: no test specified\" && exit 1"
   },
-  "author": "Flemming Hansen",
-  "license": "MIT",
   "devDependencies": {
     "@types/node": "^20.12.11",
     "typescript": "5.4.5"
-  }
+  },
+  "bugs": {
+    "url": "https://github.com/Bastardly/design-block/issues"
+  },
+  "homepage": "https://github.com/Bastardly/design-block#readme"
 }

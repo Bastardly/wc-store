@@ -2,8 +2,6 @@
 Work in progress - it will be awesome
 
 ## Example
-Note npm package not released yet
-
 ```TypeScript
 import { Store, define, StoreElement } from "@flemminghansen/wc-store";
 
