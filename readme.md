@@ -28,16 +28,17 @@ define(
 
     }
 
-    async render() {
-        this.defer(500);
+    // Just to simulate async behaviour 
+    async deferredRender() {
+        await this.defer(500);
         this.innerHTML = `<h3>Welcome!</h3>`;
-        this.defer(500);
+        await this.defer(500);
         store.setState({ loadStatus: "Loaded" }); // Adds the paragraph
     }
 
     connectedCallback() {
         this.innerHTML = `<h3>LOADING</h3>`;
-        this.render();
+        this.deferredRender();
     }
   }
 );
