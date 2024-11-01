@@ -25,15 +25,18 @@ define(
 
     defer(timeMs: number) {
         return new Promise((resolve) => setTimeout(resolve, timeMs));
-
     }
 
     // Just to simulate async behaviour 
     async deferredRender() {
-        await this.defer(500);
-        this.innerHTML = `<h3>Welcome!</h3>`;
-        await this.defer(500);
-        store.setState({ loadStatus: "Loaded" }); // Adds the paragraph
+      await this.defer(500);
+      this.innerHTML = `<h3>Welcome!</h3>`;
+
+      // Simulate setting a store update from an async function
+      store.setAsyncPartialState(async () => {
+        await this.defer(1000);
+        return { loadStatus: "Loaded" };
+      });
     }
 
     connectedCallback() {

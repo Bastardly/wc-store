@@ -5,15 +5,15 @@ export class Store<T> {
   #state: T;
   #oldState: T;
 
-  constructor(state: T) {
-    if (this.#isValidStateObject(state)) {
+  constructor(initialState: T) {
+    if (this.#isValidStateObject(initialState)) {
       throw new Error(
         "State provided in Store constructor is not a state-holding object."
       );
     }
 
-    this.#state = state;
-    this.#oldState = state;
+    this.#state = initialState;
+    this.#oldState = initialState;
   }
 
   #isValidStateObject(state: Partial<T>) {
@@ -26,6 +26,12 @@ export class Store<T> {
 
   getPreviousState() {
     return Object.freeze(this.#oldState);
+  }
+
+  getSelectedState<K extends keyof T>(selector: K) {
+    const state = this.getState();
+
+    return state[selector] as T[K];
   }
 
   setState(newState: Partial<T>) {
@@ -43,6 +49,18 @@ export class Store<T> {
     }
 
     this.#oldState = stateCopy;
+  }
+
+  setPartialState(partialState: Partial<T>) {
+    this.setState({
+      ...this.getState(),
+      ...partialState,
+    });
+  }
+
+  async setAsyncPartialState(asyncFunc: () => Promise<Partial<T>>) {
+    const partialState = await asyncFunc();
+    this.setPartialState(partialState);
   }
 
   subscribe(signal: AbortSignal, updateMethod: IUpdateMethod<T>) {
