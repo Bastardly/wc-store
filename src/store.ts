@@ -1,70 +1,97 @@
-type IUpdateMethod<T> = (newState: T, oldState: T) => void | Promise<void>;
-
-type IAction<P, T> = (payload: P, state: T, oldState: T) => Partial<T>;
-
-export class Store<T, AM extends Record<string, IAction<unknown, T>>> {
+type IUpdateMethod<T extends object> = (
+  newState: T,
+  previousState: T
+) => void | Promise<void>;
+/**
+ * WeakMap store is an extended WeakMap that takes an object as an initial state.
+ * The values of the weakmap is the currentState, previousState and a change timeStamp
+ * The data can only be accessed through this class' methods.
+ */
+export class Store<T extends object> extends WeakMap<
+  T,
+  {
+    currentState: T;
+    previousState: T;
+    timeStamp: number;
+  }
+> {
+  #initialState: T;
   #subscribers = new Set<IUpdateMethod<T>>();
-  #state: T;
-  #oldState: T;
-  #actionMap: AM;
 
-  constructor(initialState: T, actionMap: AM) {
-    if (this.#isValidStateObject(initialState)) {
+  constructor(initialState: T) {
+    super();
+    this.#validateStateObject(initialState);
+
+    this.#initialState = initialState;
+
+    const timeStamp = new Date().getTime();
+
+    this.set(this.#initialState, {
+      currentState: this.#initialState,
+      previousState: this.#initialState,
+      timeStamp,
+    });
+  }
+
+  get initialState() {
+    return Object.freeze(this.#initialState);
+  }
+
+  #getIsObject(obj: unknown) {
+    return typeof obj === "object" && obj !== null;
+  }
+
+  #validateStateObject(state: unknown) {
+    if (!this.#getIsObject(state)) {
       throw new Error(
-        "State provided in Store constructor is not a state-holding object."
+        "State provided in Store constructor is not of type Record<string, object>."
       );
     }
-
-    this.#actionMap = actionMap;
-    this.#state = initialState;
-    this.#oldState = initialState;
   }
-
-  #isValidStateObject(state: Partial<T>) {
-    return typeof state !== "object" && Array.isArray(state);
-  }
-
-  getState() {
-    return Object.freeze(this.#state);
+  getCurrentState() {
+    return this.cloneDeep(this.get(this.#initialState).currentState);
   }
 
   getPreviousState() {
-    return Object.freeze(this.#oldState);
+    return this.cloneDeep(this.get(this.#initialState).previousState);
   }
 
-  getSelectedState<K extends keyof T>(selector: K) {
-    const state = this.getState();
-
-    return state[selector] as T[K];
+  getTimeStamp() {
+    return this.get(this.#initialState).timeStamp;
   }
 
-  getSelectedPreviousState<K extends keyof T>(selector: K) {
-    const state = this.getPreviousState();
-
-    return state[selector] as T[K];
-  }
-
-  update<K extends keyof AM>(action: K, payload: Parameters<AM[typeof action]>[0]) {
-    const previousStateCopy = this.getPreviousState();
-    const stateBeforeUpdateCopy = this.getState();
-    const updatedState = this.#actionMap[action](
-      payload,
-      stateBeforeUpdateCopy,
-      previousStateCopy
-    );
-
-    this.#state = {
-      ...this.#state,
-      ...updatedState,
-    };
-
-    const updatedStateCopy = this.getState();
-
-    for (const updateMethod of this.#subscribers) {
-      updateMethod(updatedStateCopy, stateBeforeUpdateCopy);
+  cloneDeep<V>(obj: V): V {
+    if (obj instanceof URL) {
+      return new URL(obj.href) as V;
     }
 
-    this.#oldState = stateBeforeUpdateCopy;
+    if (this.#getIsObject(obj)) {
+      if (Array.isArray(obj)) {
+        return obj.map((el) => this.cloneDeep(el)) as V;
+      }
+
+      const result = {} as V;
+      for (const key in obj) {
+        if (obj.hasOwnProperty(key)) {
+          result[key] = this.cloneDeep<(typeof obj)[typeof key]>(obj[key]);
+        }
+      }
+      return result;
+    }
+
+    return obj; // For primitives and functions, return as is.
+  }
+
+  setState(updatedState: T) {
+    const currentState = this.getCurrentState();
+    this.set(this.#initialState, {
+      timeStamp: new Date().getTime(),
+      previousState: currentState,
+      currentState: updatedState,
+    });
+    this.#subscribers.forEach((updateMethod) =>
+      updateMethod(this.getCurrentState(), this.getPreviousState())
+    );
   }
 
   subscribe(signal: AbortSignal, updateMethod: IUpdateMethod<T>) {
@@ -74,3 +101,19 @@ export class Store<T, AM extends Record<string, IAction<unknown, T>>> {
     });
   }
 }
+
+// test
+// const store = new Store({ count: 0 });
+
+// store.subscribe(new AbortController().signal, (current, prev) => {
+//   console.log("prev:", prev);
+//   console.log("current:", current);
+// });
+
+// store.setState({ count: 1 });
+// console.log("Current:", store.getCurrentState()); // { count: 1 }
+// console.log("Previous:", store.getPreviousState()); // { count: 0 }
+
+// store.setState({ count: 2 });
+// console.log("Current:", store.getCurrentState()); // { count: 2 }
+// console.log("Previous:", store.getPreviousState()); // { count: 1 }
