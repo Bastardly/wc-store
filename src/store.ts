@@ -1,3 +1,6 @@
+import { getInitialStoredData, saveToStorage } from "./localStorageUtils";
+import { IOptions } from "./types";
+
 type IUpdateMethod<T extends object> = (
   newState: T,
   previousState: T
@@ -17,12 +20,17 @@ export class Store<T extends object> extends WeakMap<
 > {
   #initialState: T;
   #subscribers = new Set<IUpdateMethod<T>>();
+  #options: IOptions;
 
-  constructor(initialState: T) {
+  constructor(initialState: T, options?: IOptions) {
     super();
-    this.#validateStateObject(initialState);
+    this.#options = options;
 
-    this.#initialState = initialState;
+    const state = getInitialStoredData<T>(initialState, options);
+    saveToStorage(state, this.#options);
+    this.#validateStateObject(state);
+
+    this.#initialState = state;
 
     const timeStamp = new Date().getTime();
 
@@ -89,6 +97,8 @@ export class Store<T extends object> extends WeakMap<
       previousState: currentState,
       currentState: updatedState,
     });
+
+    saveToStorage<T>(updatedState, this.#options);
     this.#subscribers.forEach((updateMethod) =>
       updateMethod(this.getCurrentState(), this.getPreviousState())
     );
@@ -101,19 +111,3 @@ export class Store<T extends object> extends WeakMap<
     });
   }
 }
-
-// test
-// const store = new Store({ count: 0 });
-
-// store.subscribe(new AbortController().signal, (current, prev) => {
-//   console.log("prev:", prev);
-//   console.log("current:", current);
-// });
-
-// store.setState({ count: 1 });
-// console.log("Current:", store.getCurrentState()); // { count: 1 }
-// console.log("Previous:", store.getPreviousState()); // { count: 0 }
-
-// store.setState({ count: 2 });
-// console.log("Current:", store.getCurrentState()); // { count: 2 }
-// console.log("Previous:", store.getPreviousState()); // { count: 1 }

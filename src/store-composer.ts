@@ -1,4 +1,8 @@
+import {
+  getChildStorageOptions,
+} from "./localStorageUtils";
 import { Store } from "./store";
+import { IOptions } from "./types";
 
 type IUpdateToState<T, K extends keyof T> = Record<K, T[K]>;
 
@@ -8,14 +12,45 @@ export type IUpdateToMethod<T, K extends keyof T> = (
   previousState: IUpdateToState<T, K>
 ) => void | Promise<void>;
 
+interface IComposerStore {
+  childStorageKeys: string[];
+}
+
 export class StoreComposer<T extends Record<string, object>> {
-  #stores = {} as Record<keyof T, Store<T[keyof T]>>
+  #stores = {} as Record<keyof T, Store<T[keyof T]>>;
+  #options?: IOptions;
+  #composerStore?: Store<IComposerStore>;
 
-  constructor(initialState: T) {
+  constructor(initialState: T, options?: IOptions) {
     this.#validateStateObject(initialState);
+    this.#options = options;
+    let childKeys = Object.keys(initialState);
 
-    Object.keys(initialState).forEach((selectorKey: keyof T) => {
-      this.#stores[selectorKey] = new Store(initialState[selectorKey]);
+    // If we store things in local- or session storage
+    if (options?.prefix) {
+      // Store handles the stored values based on options
+      this.#composerStore = new Store(
+        {
+          childStorageKeys: childKeys,
+        },
+        this.#options
+      );
+
+      childKeys = this.#composerStore.getCurrentState().childStorageKeys;
+    }
+
+    childKeys.forEach((selectorKey: keyof T) => {
+
+      const childState =
+        initialState[selectorKey] ||
+        ({} as (typeof initialState)[typeof selectorKey]);
+
+      const childOptions = getChildStorageOptions(
+        selectorKey as string,
+        this.#options
+      );
+
+      this.#stores[selectorKey] = new Store(childState, childOptions);
     });
   }
 
@@ -39,9 +74,26 @@ export class StoreComposer<T extends Record<string, object>> {
    * @param payload T
    */
   createStore<K extends string>(key: K, payload: T[K]) {
-    this.#stores[key] = new Store(payload);
+    this.#stores[key] = new Store(
+      payload,
+      getChildStorageOptions(key as string, this.#options)
+    );
+
+    if (this.#composerStore) {
+      const composerState = this.#composerStore.getCurrentState();
+      if (!composerState.childStorageKeys.includes(key)) {
+        composerState.childStorageKeys.push(key);
+        this.#composerStore.setState(composerState);
+      } else {
+        console.warn(`Store with key: "${key}" already exist`);
+      }
+    }
 
     return this.#stores[key];
+  }
+
+  deleteStore(key: string) {
+    delete this.#stores[key];
   }
 
   /**
@@ -49,7 +101,7 @@ export class StoreComposer<T extends Record<string, object>> {
    * @returns string[]
    */
   keys() {
-    return Object.keys(this.#stores);
+    return Object.keys(this.#stores) as (keyof T)[];
   }
 
   #getIsObject(obj: T) {
@@ -66,10 +118,10 @@ export class StoreComposer<T extends Record<string, object>> {
 
   subscribeTo<K extends keyof T>(
     signal: AbortSignal,
-    storeKeys: K[],
-    updateToMethod: IUpdateToMethod<T, K>
+    updateToMethod: IUpdateToMethod<T, K>,
+    storeKeys?: K[]
   ) {
-    storeKeys.forEach((storeKey: K) => {
+    (storeKeys || this.keys()).forEach((storeKey: K) => {
       if (this.#stores[storeKey]) {
         this.#stores[storeKey].subscribe(signal, (newState, previousState) =>
           // todo ... add remaining state
