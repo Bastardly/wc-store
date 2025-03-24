@@ -2,8 +2,8 @@
   "name": "@flemminghansen/wc-store",
   "author": "Flemming Hansen",
   "license": "MIT",
-  "version": "1.0.0",
-  "description": "Small reactive store to be used with web component",
+  "version": "1.0.1",
+  "description": "Small agnostic reactive store designed for web components, but can be used for any framework.",
   "main": "lib/index.js",
   "types": "lib/index.d.ts",
   "files": [
