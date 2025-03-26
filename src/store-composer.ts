@@ -1,4 +1,3 @@
-import { timeStamp } from "console";
 import { getChildStorageOptions } from "./localStorageUtils";
 import { Store } from "./store";
 import { IOptions } from "./types";
