@@ -1,6 +1,5 @@
-import {
-  getChildStorageOptions,
-} from "./localStorageUtils";
+import { timeStamp } from "console";
+import { getChildStorageOptions } from "./localStorageUtils";
 import { Store } from "./store";
 import { IOptions } from "./types";
 
@@ -16,10 +15,16 @@ interface IComposerStore {
   childStorageKeys: string[];
 }
 
+interface ITimeStampStore {
+  createdTimeStamp?: number;
+  deletedTimeStamp?: number;
+}
+
 export class StoreComposer<T extends Record<string, object>> {
   #stores = {} as Record<keyof T, Store<T[keyof T]>>;
   #options?: IOptions;
   #composerStore?: Store<IComposerStore>;
+  timeStampStore: Store<ITimeStampStore>;
 
   constructor(initialState: T, options?: IOptions) {
     this.#validateStateObject(initialState);
@@ -40,7 +45,6 @@ export class StoreComposer<T extends Record<string, object>> {
     }
 
     childKeys.forEach((selectorKey: keyof T) => {
-
       const childState =
         initialState[selectorKey] ||
         ({} as (typeof initialState)[typeof selectorKey]);
@@ -51,6 +55,15 @@ export class StoreComposer<T extends Record<string, object>> {
       );
 
       this.#stores[selectorKey] = new Store(childState, childOptions);
+    });
+
+    this.timeStampStore = new Store({});
+  }
+
+  #setTimeStamp(key: keyof ITimeStampStore) {
+    this.timeStampStore.setState({
+      ...this.timeStampStore.getCurrentState(),
+      [key]: new Date().getTime(),
     });
   }
 
@@ -84,6 +97,7 @@ export class StoreComposer<T extends Record<string, object>> {
       if (!composerState.childStorageKeys.includes(key)) {
         composerState.childStorageKeys.push(key);
         this.#composerStore.setState(composerState);
+        this.#setTimeStamp('createdTimeStamp')
       } else {
         console.warn(`Store with key: "${key}" already exist`);
       }
@@ -94,6 +108,7 @@ export class StoreComposer<T extends Record<string, object>> {
 
   deleteStore(key: string) {
     delete this.#stores[key];
+    this.#setTimeStamp('deletedTimeStamp')
   }
 
   /**
@@ -114,24 +129,5 @@ export class StoreComposer<T extends Record<string, object>> {
         "State provided in Store constructor is not of type Record<string, object>."
       );
     }
-  }
-
-  subscribeTo<K extends keyof T>(
-    signal: AbortSignal,
-    updateToMethod: IUpdateToMethod<T, K>,
-    storeKeys?: K[]
-  ) {
-    (storeKeys || this.keys()).forEach((storeKey: K) => {
-      if (this.#stores[storeKey]) {
-        this.#stores[storeKey].subscribe(signal, (newState, previousState) =>
-          // todo ... add remaining state
-          updateToMethod(
-            storeKey,
-            newState as Record<K, T[K]>,
-            previousState as Record<K, T[K]>
-          )
-        );
-      }
-    });
   }
 }
