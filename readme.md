@@ -60,7 +60,7 @@ yarn add @flemminghansen/wc-store
 
 ## Quick Start
 
-Below is a simple example that demonstrates how to create a reactive store and use it within a web component.
+Below is a simple example that demonstrates how to create a reactive store and use it.
 
 ### Creating a Store
 
@@ -167,19 +167,37 @@ new Store<T extends object>(initialState: T, options?: IOptions)
 
 ### StoreElement
 
-The `StoreElement` class is a simple extension of `HTMLElement` that automatically creates an `AbortController` to cancel any ongoing subscriptions when the element is disconnected from the DOM.
+The `StoreElement` class is a simple extension of `HTMLElement` that automatically creates an `AbortController` to cancel any ongoing subscriptions when the element is disconnected from the DOM. The `StoreElement` also have a `disconnectedCallback` method, which is automatically called, once the `HTMLElement` is unmounted.
+
+**Key values:**
+
+- **signal: AbortSignal** 
+  We use this to unsubscribe from the Store when then `HTMLElement` is unmounted.
+
+- **controller: AbortController**  
+  If you need to run `disconnectedCallback` on your component, remember to call `this.controller.abort()` to unsubscribe from Store to avoid memory leak.
 
 **Usage:**
 
 ```typescript
-import { StoreElement } from "@flemminghansen/wc-store";
+import { define, StoreElement, Store } from "@flemminghansen/wc-store";
+
+const initialState: AppState = { counter: 0 };
+
+// Create a new store instance
+const appStore = new Store<AppState>(initialState);
 
 class MyElement extends StoreElement {
   // Your component logic here
   connectedCallback() {
-    // Subscribe to store changes or any other event
+    // The abort signal is part of the StoreElement. The subscription will be cancelled automatically once MyElement is unmounted.
+    appStore.subscribe(this.signal, (newState, previousState) => {
+      console.log("State changed from", previousState, "to", newState);
+    });
   }
 }
+
+define('my-element', MyElement)
 ```
 
 ---
