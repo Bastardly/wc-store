@@ -30,6 +30,24 @@ export function saveToStorage<T>(value: T, options?: IOptions) {
   }
 }
 
+export function deleteFromStorage(options?: IOptions) {
+  if (!options?.prefix) return;
+
+  if (options.saveToLocalStorageKey) {
+    const fullKey = getEnhancedKey(
+      options.saveToLocalStorageKey,
+      options.prefix
+    );
+    window.localStorage.removeItem(fullKey);
+  } else if (options.saveToSessionStorageKey) {
+    const fullKey = getEnhancedKey(
+      options.saveToSessionStorageKey,
+      options.prefix
+    );
+    window.sessionStorage.removeItem(fullKey);
+  }
+}
+
 function getStoredValueString(options?: IOptions) {
   if (options?.prefix) {
     const getKey = (str: string) => getEnhancedKey(str, options.prefix);

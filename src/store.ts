@@ -1,4 +1,8 @@
-import { getInitialStoredData, saveToStorage } from "./localStorageUtils";
+import {
+  deleteFromStorage,
+  getInitialStoredData,
+  saveToStorage,
+} from "./localStorageUtils";
 import { IOptions } from "./types";
 
 type IUpdateMethod<T extends object> = (
@@ -88,6 +92,10 @@ export class Store<T extends object> extends WeakMap<
     }
 
     return obj; // For primitives and functions, return as is.
+  }
+
+  clearStorage() {
+    return deleteFromStorage(this.#options);
   }
 
   setState(updatedState: T) {

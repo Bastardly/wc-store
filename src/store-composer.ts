@@ -96,7 +96,7 @@ export class StoreComposer<T extends Record<string, object>> {
       if (!composerState.childStorageKeys.includes(key)) {
         composerState.childStorageKeys.push(key);
         this.#composerStore.setState(composerState);
-        this.#setTimeStamp('createdTimeStamp')
+        this.#setTimeStamp("createdTimeStamp");
       } else {
         console.warn(`Store with key: "${key}" already exist`);
       }
@@ -106,8 +106,9 @@ export class StoreComposer<T extends Record<string, object>> {
   }
 
   deleteStore(key: string) {
+    this.#stores[key].clearStorage();
     delete this.#stores[key];
-    this.#setTimeStamp('deletedTimeStamp')
+    this.#setTimeStamp("deletedTimeStamp");
   }
 
   /**
