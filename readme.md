@@ -111,12 +111,15 @@ define(
 import { define } from "@flemminghansen/wc-store";
 
 // Use the `define` helper to register your custom element
-define("custom-element", class extends HTMLElement {
-  constructor() {
-    super();
-    this.innerHTML = "<div>My Custom Element</div>";
+define(
+  "custom-element",
+  class extends HTMLElement {
+    constructor() {
+      super();
+      this.innerHTML = "<div>My Custom Element</div>";
+    }
   }
-});
+);
 ```
 
 Now you can use the `<custom-element></custom-element>` element in your HTML.
@@ -135,11 +138,11 @@ The `Store` class creates an observable state container. It maintains the curren
 - **options (optional):**
 
   - **prefix: string**  
-  Prefix for storage_key for identifying store.
+    Prefix for storage_key for identifying store.
   - **saveToSessionStorageKey?: string**  
-  Name for `sessionStorage` key. Will be prefixed with prefix.
+    Name for `sessionStorage` key. Will be prefixed with prefix.
   - **saveToLocalStorageKey?: string**  
-  Name for `localStorage` key. Will be prefixed with prefix. Will override saveToSessionStorageKey if both are set.
+    Name for `localStorage` key. Will be prefixed with prefix. Will override saveToSessionStorageKey if both are set.
 
 ```typescript
 new Store<T extends object>(initialState: T, options?: IOptions)
@@ -162,42 +165,81 @@ new Store<T extends object>(initialState: T, options?: IOptions)
 - **subscribe(signal: AbortSignal, updateMethod: (newState: T, previousState: T) => void | Promise<void>): void**  
   Subscribes to state changes. When the provided signal is aborted (e.g., when a component is disconnected), the subscription is automatically removed.
 
-
 ---
 
 ### StoreElement
 
-The `StoreElement` class is a simple extension of `HTMLElement` that automatically creates an `AbortController` to cancel any ongoing subscriptions when the element is disconnected from the DOM. The `StoreElement` also have a `disconnectedCallback` method, which is automatically called, once the `HTMLElement` is unmounted.
+The `StoreElement` class extends `HTMLElement` through `ExtendedHTMLElement`, providing automatic subscription cleanup and utility methods for managing attributes, styles, and classes. It automatically creates an `AbortController` to cancel any ongoing subscriptions when the element is disconnected from the DOM.
 
-**Key values:**
+**Key Properties:**
 
-- **signal: AbortSignal** 
-  We use this to unsubscribe from the Store when then `HTMLElement` is unmounted.
+- **signal: AbortSignal**
+  Used to unsubscribe from the Store when the `HTMLElement` is unmounted.
 
 - **controller: AbortController**  
   If you need to run `disconnectedCallback` on your component, remember to call `this.controller.abort()` to unsubscribe from Store to avoid memory leak.
+
+**Extended Methods:**
+
+- **getSetAttributesFromList\<T extends string\>(defaultAttributes: Record\<T, string\>): Record\<T, string\>**  
+  Retrieves attributes from the element or sets them with default values if they don't exist. Returns an object containing the actual or default attribute values.
+
+- **appendStyles(styleObject: StyleMap, target?: HTMLElement): void**  
+  Applies CSS styles to the target element (defaults to current element). Supports both camelCase and kebab-case properties, as well as CSS custom properties (e.g., `--custom-var`).
+
+- **appendAttributes(attributes: Record\<string, string\>, target?: HTMLElement): void**  
+  Sets multiple attributes on the target element (defaults to current element).
+
+- **appendStyleClasses(classNames: Record\<string, boolean\>, target?: HTMLElement): void**  
+  Conditionally adds or removes CSS classes on the target element based on boolean values (true to add, false to remove).
 
 **Usage:**
 
 ```typescript
 import { define, StoreElement, Store } from "@flemminghansen/wc-store";
 
-const initialState: AppState = { counter: 0 };
+interface AppState {
+  counter: number;
+  theme: string;
+}
+
+const initialState: AppState = { counter: 0, theme: "light" };
 
 // Create a new store instance
 const appStore = new Store<AppState>(initialState);
 
 class MyElement extends StoreElement {
-  // Your component logic here
   connectedCallback() {
-    // The abort signal is part of the StoreElement. The subscription will be cancelled automatically once MyElement is unmounted.
+    // Get or set default attributes
+    const attrs = this.getSetAttributesFromList({
+      "data-id": "1",
+      "data-name": "counter",
+    });
+
+    // Subscribe to store changes - subscription will be cancelled automatically once unmounted
     appStore.subscribe(this.signal, (newState, previousState) => {
       console.log("State changed from", previousState, "to", newState);
+
+      // Use utility methods to update the element
+      this.appendStyles({
+        color: newState.theme === "dark" ? "#fff" : "#000",
+        "--counter": String(newState.counter),
+      });
+
+      this.appendStyleClasses({
+        active: newState.counter > 0,
+        "dark-theme": newState.theme === "dark",
+      });
+
+      this.appendAttributes({
+        "aria-label": `Counter: ${newState.counter}`,
+        "data-count": String(newState.counter),
+      });
     });
   }
 }
 
-define('my-element', MyElement)
+define("my-element", MyElement);
 ```
 
 ---
@@ -214,16 +256,15 @@ define('my-element', MyElement)
 - **options (optional):**
 
   - **prefix: string**  
-  Prefix for storage_key for identifying store.
+    Prefix for storage_key for identifying store.
   - **saveToSessionStorageKey?: string**  
-  Name for `sessionStorage` key. Will be prefixed with prefix.
+    Name for `sessionStorage` key. Will be prefixed with prefix.
   - **saveToLocalStorageKey?: string**  
-  Name for `localStorage` key. Will be prefixed with prefix. Will override saveToSessionStorageKey if both are set.
+    Name for `localStorage` key. Will be prefixed with prefix. Will override saveToSessionStorageKey if both are set.
 
 ```typescript
 new StoreComposer<T extends Record<string, object>>(initialState: T, options?: IOptions)
 ```
-
 
 **Key Methods:**
 
@@ -240,9 +281,9 @@ new StoreComposer<T extends Record<string, object>>(initialState: T, options?: I
   Returns an array of all store keys.
 
 **Utility store:**
-- **timeStampStore: Store<{createdTimeStamp?: number,  deletedTimeStamp?: number}>**  
- Tracks timestamps for store creation and deletion.
 
+- **timeStampStore: Store<{createdTimeStamp?: number, deletedTimeStamp?: number}>**  
+  Tracks timestamps for store creation and deletion.
 
 ---
 
@@ -260,7 +301,7 @@ interface AppStores {
 
 const initialAppState: AppStores = {
   user: { name: "Alice", age: 25 },
-  settings: { theme: "light" }
+  settings: { theme: "light" },
 };
 
 const composer = new StoreComposer<AppStores>(initialAppState);
@@ -279,6 +320,7 @@ console.log("Available stores:", composer.keys());
 ```
 
 ### Keeping track of stores added or deleted
+
 ```typescript
 import { define, StoreComposer, StoreElement } from "@flemminghansen/wc-store";
 
@@ -289,33 +331,35 @@ interface AppStores {
 
 const initialAppState: AppStores = {
   user: { name: "Alice", age: 25 },
-  settings: { theme: "light" }
+  settings: { theme: "light" },
 };
 
-const composer = new StoreComposer<AppStores>
-define("my-app", class extends StoreElement {
-
+const composer = new StoreComposer<AppStores>();
+define(
+  "my-app",
+  class extends StoreElement {
     constructor() {
-        super();
-        composer.timeStampStore.subscribe(() => {
-            // runs when a store is added or deleted in composer
-            window.requestAnimationFrame(() => {
-                this.#render();
-            })
-        })
+      super();
+      composer.timeStampStore.subscribe(() => {
+        // runs when a store is added or deleted in composer
+        window.requestAnimationFrame(() => {
+          this.#render();
+        });
+      });
     }
 
     #render() {
-        composer.keys().forEach((key) => {
-            const keyState = composer.getStore(key).getCurrentState()
+      composer.keys().forEach((key) => {
+        const keyState = composer.getStore(key).getCurrentState();
         // render app based on key and state
-        })
+      });
     }
 
     connectedCallback() {
-        this.#render()
+      this.#render();
     }
-});
+  }
+);
 ```
 
 ---
@@ -335,5 +379,3 @@ Contributions are welcome! Feel free to open issues or submit pull requests. For
 3. Commit your changes (`git commit -m 'Add some feature'`).
 4. Push to the branch (`git push origin feature/your-feature`).
 5. Open a pull request.
-
-
